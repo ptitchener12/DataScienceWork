@@ -221,6 +221,19 @@ plot(cutBins,ratio1,ylim=0:1,xlab = "Diamond Size (Carats)", ylab = "Ratio of Id
 This is a similar trend when limited to only ideal cut diamonds. 
 
 
+```{r}
+underOne <- diamonds %>%
+  filter(carat < 1 & carat >= 0.9)
+meanUnder1 = mean(underOne$price)
+
+overOne <- diamonds %>%
+  filter(carat < 1.1 & carat >= 1)
+meanOver1 = mean(overOne$price)
+
+print(meanUnder1)
+print(meanOver1)
+```
+
 
 __q3__ *Knit* your document in order to create a report.
 

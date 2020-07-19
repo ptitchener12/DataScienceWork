@@ -1,0 +1,167 @@
+---
+title: "RMS Titanic"
+author: "(Your name here)"
+date: 2020-
+output:
+  github_document:
+    toc: true
+---
+
+*Purpose*: Most datasets have at least a few variables. Part of our task in analyzing a dataset is to understand trends as they vary across these different variables. Unless we're careful and thorough, we can easily miss these patterns. In this challenge you'll analyze a dataset with a small number of categorical variables and try to find differences among the groups.
+
+*Reading*: (Optional) [Wikipedia article](https://en.wikipedia.org/wiki/RMS_Titanic) on the RMS Titanic.
+
+<!-- include-rubric -->
+# Grading Rubric
+<!-- -------------------------------------------------- -->
+
+Unlike exercises, **challenges will be graded**. The following rubrics define how you will be graded, both on an individual and team basis.
+
+## Individual
+<!-- ------------------------- -->
+
+| Category | Unsatisfactory | Satisfactory |
+|----------|----------------|--------------|
+| Effort | Some task __q__'s left unattempted | All task __q__'s attempted |
+| Observed | Did not document observations | Documented observations based on analysis |
+| Supported | Some observations not supported by analysis | All observations supported by analysis (table, graph, etc.) |
+| Code Styled | Violations of the [style guide](https://style.tidyverse.org/) hinder readability | Code sufficiently close to the [style guide](https://style.tidyverse.org/) |
+
+## Team
+<!-- ------------------------- -->
+
+| Category | Unsatisfactory | Satisfactory |
+|----------|----------------|--------------|
+| Documented | No team contributions to Wiki | Team contributed to Wiki |
+| Referenced | No team references in Wiki | At least one reference in Wiki to member report(s) |
+| Relevant | References unrelated to assertion, or difficult to find related analysis based on reference text | Reference text clearly points to relevant analysis |
+
+## Due Date
+<!-- ------------------------- -->
+
+All the deliverables stated in the rubrics above are due on the day of the class discussion of that exercise. See the [Syllabus](https://docs.google.com/document/d/1jJTh2DH8nVJd2eyMMoyNGroReo0BKcJrz1eONi3rPSc/edit?usp=sharing) for more information.
+
+```{r setup}
+library(tidyverse)
+
+df_titanic <- as_tibble(Titanic)
+```
+
+*Background*: The RMS Titanic sank on its maiden voyage in 1912; about 67% of its passengers died. 
+
+# First Look
+<!-- -------------------------------------------------- -->
+
+__q1__ Perform a glimpse of `df_titanic`. What variables are in this dataset?
+
+```{r q1-task}
+## TASK: Perform a `glimpse` of df_titanic
+glimpse(df_titanic)
+```
+
+**Observations**:
+
+Class, Sex, Age, Survived, n - N seems to be the number of people with similar previous characteristics. 
+
+__q2__ Skim the [Wikipedia article](https://en.wikipedia.org/wiki/RMS_Titanic) on the RMS Titanic, and look for a total count of passengers. Compare against the total computed below. Are there any differences? Are those differences large or small? What might account for those differences?
+
+2224 passengers + crew
+~1500 died 
+
+```{r q2-summary}
+## NOTE: No need to edit! We'll cover how to
+## do this calculation in a later exercise.
+df_titanic %>% summarize(total = sum(n))
+```
+
+**Observations**:
+
+The difference is 23 people. Poor historical data may account for this difference. This data set may also have come out before new information was found about the titanic passenger and crew list. Also there may have been stowaways that boarded the ship without a ticket and therefore would not have been counted as a passenger or crew.
+
+From the wikipedia article: "confusion over the passenger list, which included some names of people who canceled their trip at the last minute, and the fact that several passengers traveled under aliases for various reasons"
+
+
+__q3__ Create a plot showing the count of passengers who *did* survive, along with aesthetics for `Class` and `Sex`. Document your observations below.
+
+*Note*: There are many ways to do this.
+
+```{r q3-task}
+
+
+df_titanic %>% 
+  filter(Survived == "Yes") %>% 
+  group_by(Class,Sex) %>% 
+  summarize(totalSex = sum(n)) %>% 
+  ggplot() + 
+  geom_point(aes(Class, totalSex, color = Sex, size = 2))
+```
+
+**Observations**:
+
+This plot is not that useful because it does not show percentages. 
+For example, there were likely none of the crew were children, and therefore "none" of them survived. 
+Also, it appears that only a small number of children in first class survived, although in reality almost none of them died, there were just very few of them. 
+Likewise, a large number of male crew survived, but that was because there were so many male crew on board. 
+
+# Deeper Look
+<!-- -------------------------------------------------- -->
+
+Raw counts give us a sense of totals, but they are not as useful for understanding differences between groups. This is because the differences we see in counts could be due to either the relative size of the group OR differences in outcomes for those groups. To make comparisons between groups, we should also consider *proportions*.[1]
+
+The following code computes proportions within each `Class, Sex, Age` group.
+
+```{r compute-prop}
+## NOTE: No need to edit! We'll cover how to
+## do this calculation in a later exercise.
+df_prop <-
+  df_titanic %>%
+  group_by(Class, Sex, Age) %>%
+  mutate(
+    Total = sum(n),
+    Prop = n / Total
+  ) %>%
+  ungroup()
+df_prop
+```
+
+__q4__ Replicate your visual from q3, but display `Prop` in place of `n`. Document your observations, and note any new/different observations you make in comparison with q3.
+
+```{r q4-task}
+df_prop %>% 
+  filter(Survived == "Yes") %>% 
+  ggplot() +
+  geom_point(aes(Class, Prop, color = Sex),size = 3)
+  
+```
+
+**Observations**:
+
+Now we see that all first and second class children survived, and there were no children in the crew. 
+Men were by far largest groups of casualties, especially men in second class. 
+
+
+__q5__ Create a plot showing the group-proportion of passengers who *did* survive, along with aesthetics for `Class`, `Sex`, *and* `Age`. Document your observations below.
+
+
+
+*Hint*: Don't forget that you can use `facet_grid` to help consider additional variables!
+
+```{r q5-task}
+df_prop %>% 
+  filter(Survived == "Yes") %>% 
+  ggplot(aes(Class, Prop, fillnn = Age)) + 
+  geom_bar(stat =  "identity") + 
+  facet_grid(cols = vars(Sex), rows = vars(Age))
+```
+
+**Observations**:
+
+Children were almost always more likely to survive, except for third class women. 
+First and second class children had a 100% survival rate. 
+
+
+
+# Notes
+<!-- -------------------------------------------------- -->
+
+[1] This is basically the same idea as [Dimensional Analysis](https://en.wikipedia.org/wiki/Dimensional_analysis); computing proportions is akin to non-dimensionalizing a quantity.
