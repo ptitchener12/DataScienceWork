@@ -1,0 +1,578 @@
+---
+title: "COVID-19"
+author: "(Your name here)"
+date: 2020-
+output:
+  github_document:
+    toc: true
+---
+
+*Purpose*: We can't *possibly* do a class on data science and *not* look at covid-19. Come on.
+
+In this challenge, you'll learn how to navigate the U.S. Census Bureau website, programmatically download data from the internet, and perform a county-level population-weighted analysis of current covid-19 trends. Get excited!
+
+<!-- include-rubric -->
+# Grading Rubric
+<!-- -------------------------------------------------- -->
+
+Unlike exercises, **challenges will be graded**. The following rubrics define how you will be graded, both on an individual and team basis.
+
+## Individual
+<!-- ------------------------- -->
+
+| Category | Unsatisfactory | Satisfactory |
+|----------|----------------|--------------|
+| Effort | Some task __q__'s left unattempted | All task __q__'s attempted |
+| Observed | Did not document observations | Documented observations based on analysis |
+| Supported | Some observations not supported by analysis | All observations supported by analysis (table, graph, etc.) |
+| Code Styled | Violations of the [style guide](https://style.tidyverse.org/) hinder readability | Code sufficiently close to the [style guide](https://style.tidyverse.org/) |
+
+## Team
+<!-- ------------------------- -->
+
+| Category | Unsatisfactory | Satisfactory |
+|----------|----------------|--------------|
+| Documented | No team contributions to Wiki | Team contributed to Wiki |
+| Referenced | No team references in Wiki | At least one reference in Wiki to member report(s) |
+| Relevant | References unrelated to assertion, or difficult to find related analysis based on reference text | Reference text clearly points to relevant analysis |
+
+## Due Date
+<!-- ------------------------- -->
+
+All the deliverables stated in the rubrics above are due on the day of the class discussion of that exercise. See the [Syllabus](https://docs.google.com/document/d/1jJTh2DH8nVJd2eyMMoyNGroReo0BKcJrz1eONi3rPSc/edit?usp=sharing) for more information.
+
+```{r setup}
+library(tidyverse)
+
+```
+
+*Background*: [COVID-19](https://en.wikipedia.org/wiki/Coronavirus_disease_2019) is the disease caused by the virus SARS-CoV-2. In 2020 it became a global pandemic, leading to huge loss of life and tremendous disruption to society. The New York Times published up-to-date data on the progression of the pandemic across the United States---we will study these data in this challenge.
+
+# The Big Picture
+<!-- -------------------------------------------------- -->
+
+We're about to go through *a lot* of weird steps, so let's first fix the big picture firmly in mind:
+
+We want to study COVID-19 in terms of data: both case counts (number of infections) and deaths. We're going to do a county-level analysis in order to get a high-resolution view of the pandemic. Since US counties can vary widely in terms of their population, we'll need population estimates in order to compute infection rates (think back to the `Titanic` challenge).
+
+That's the high-level view; now let's dig into the details.
+
+# Get the Data
+<!-- -------------------------------------------------- -->
+
+1. County-level population estimates (Census Bureau)
+2. County-level COVID-19 counts (New York Times)
+
+## Navigating the Census Bureau
+<!-- ------------------------- -->
+
+**Steps**: Our objective is to find the 2018 American Community Survey[1] (ACS) Total Population estimates, disaggregated by counties. To check your results, this is Table `B01003`.
+
+1. Go to [data.census.gov](data.census.gov).
+2. Scroll down and click `View Tables`.
+3. Apply filters to find the ACS Total Population estimates, disaggregated by counties. I used the filters:
+  - `Topics > Populations and People > Counts, Estimates, and Projections > Population Total`
+  - `Geography > County > All counties in United States`
+5. Click the `Download` button to download the data; make sure to select the 2018 y-year estimates.
+6. Unzip and move the data to your `challenges/data` folder.
+  - Note that the data will have the crazy-long filename `ACSDT5Y2018.B01003_data_with_overlays_2020-06-30T102151.csv`. That's because metadata is stored in the filename, such as the year of the estimate (`Y2018`) and my access date (`2020-06-30`).
+
+__q1__ Load Table `B01003` into the following tibble. Make sure the column names are `id, Geographic Area Name, Estimate!!Total, Margin of Error!!Total`.
+
+*Hint*: You will need to use the `skip` keyword when loading these data!
+
+```{r q1-task}
+## TASK: Load the census bureau data with the following tibble name.
+df_pop  <-  read_csv("data/ACSST5Y2018.S0101_data_with_overlays_2020-08-01T094026.csv",skip = 1)  
+
+df_pop_select <- df_pop %>% 
+  select(id,Geographic_Area_Name, EstimatePopulation) %>% 
+  separate(
+    col = 2,
+    into = c("county", NA, "state"),
+    sep = " "
+  )
+
+df_pop_select
+```
+
+*Note*: You can find information on 1-year, 3-year, and 5-year estimates [here](https://www.census.gov/programs-surveys/acs/guidance/estimates.html). The punchline is that 5-year estimates are more reliable but less current.
+
+## Automated Download of NYT Data
+<!-- ------------------------- -->
+
+ACS 5-year estimates don't change all that often, but the COVID-19 data are changing rapidly. To that end, it would be nice to be able to *programmatically* download the most recent data for analysis; that way we can update our analysis whenever we want simply by re-running our notebook. This next problem will have you set up such a pipeline.
+
+The New York Times is publishing up-to-date data on COVID-19 on [GitHub](https://github.com/nytimes/covid-19-data).
+
+__q2__ Visit the NYT [GitHub](https://github.com/nytimes/covid-19-data) repo and find the URL for the **raw** US County-level data. Assign that URL as a string to the variable below.
+
+```{r q2-task}
+## TASK: Find the URL for the NYT covid-19 county-level data
+url_counties <- "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
+```
+
+Once you have the url, the following code will download a local copy of the data, then load the data into R.
+
+```{r download}
+## NOTE: No need to change this; just execute
+## Set the filename of the data to download
+filename_nyt <- "./data/nyt_counties.csv"
+
+## Download the data locally
+curl::curl_download(
+        url_counties,
+        destfile = filename_nyt
+      )
+
+## Loads the downloaded csv
+df_covid <- read_csv(filename_nyt)
+```
+
+You can now re-run the chunk above (or the entire notebook) to pull the most recent version of the data. Thus you can periodically re-run this notebook to check in on the pandemic as it evolves.
+
+*Note*: You should feel free to copy-paste the code above for your own future projects!
+
+# Join the Data
+<!-- -------------------------------------------------- -->
+
+
+
+To get a sense of our task, let's take a glimpse at our two data sources.
+
+```{r glimpse}  
+## NOTE: No need to change this; just execute
+df_pop_select %>% glimpse
+df_covid %>% glimpse
+```
+
+To join these datasets, we'll need to use [FIPS county codes](https://en.wikipedia.org/wiki/FIPS_county_code).[2] The last `5` digits of the `id` column in `df_pop` is the FIPS county code, while the NYT data `df_covid` already contains the `fips`.
+
+__q3__ Process the `id` column of `df_pop` to create a `fips` column.
+
+```{r q3-task}
+## TASK: Create a `fips` column by extracting the county code
+df_q3 <- df_pop_select %>% 
+  mutate(fips = substr(id,10,15))
+
+df_q3
+
+  
+  
+```
+
+```{r}
+df_q3 %>%
+  filter(county == "Autauga") %>%
+  pull(fips) == "01001"
+
+
+
+```
+
+Use the following test to check your answer.
+
+```{r q3-tests}
+## NOTE: No need to change this
+## Check known county
+assertthat::assert_that(
+              (df_q3 %>%
+              filter(county == "Autauga") %>%
+              pull(fips)) == "01001"
+              )
+print("Very good!")
+```
+
+```{r}
+df_q3
+```
+
+
+__q4__ Join `df_covid` with `df_q3` by the `fips` column. Use the proper type of join to preserve all rows in `df_covid`.
+
+```{r q4-task}
+## TASK: Join df_covid and df_q3 by fips.
+df_q4 <- merge(df_covid, df_q3, by = c("fips","county","state")) #all.y = TRUE)
+
+#df_q4[is.na(df_q4)] <- 0
+
+
+
+```
+
+```{r}
+df_q4 %>% 
+  filter(id == "0500000US51059")
+
+df_q4 %>% 
+  filter(county == "Fairfax") %>% 
+  arrange(date)
+```
+
+
+For convenience, I down-select some columns and produce more convenient column
+names.
+
+```{r rename}
+## NOTE: No need to change; run this to produce a more convenient tibble
+df_data <-
+  df_q4 %>%
+  select(
+    date,
+    county,
+    state,
+    fips,
+    cases,
+    deaths,
+    population = `EstimatePopulation`
+  )
+```
+
+# Analyze
+<!-- -------------------------------------------------- -->
+
+Now that we've done the hard work of loading and wrangling the data, we can finally start our analysis. Our first step will be to produce county population-normalized cases and death counts. Then we will explore the data.
+
+## Normalize
+<!-- ------------------------- -->
+
+__q5__ Use the `population` estimates in `df_data` to normalize `cases` and `deaths` to produce per 100,000 counts.[3] Store these values in the columns `cases_perk` and `deaths_perk`.
+
+```{r q5-task}
+## TASK: Normalize cases and deaths
+df_normalized <-
+  df_data %>% 
+  mutate(cases_perk = cases/(population/100000), deaths_perk = deaths/(population/100000)) 
+```
+
+You may use the following test to check your work.
+
+```{r q5-tests}
+## NOTE: No need to change this
+## Check known county data
+assertthat::assert_that(
+              abs(df_normalized %>%
+               filter(str_detect(county, "Snohomish"),
+                 date == "2020-01-21"
+               ) %>%
+              pull(cases_perk) - 0.127) < 1e-3
+            )
+assertthat::assert_that(
+              abs(df_normalized %>%
+               filter(
+                 str_detect(county, "Snohomish"),
+                 date == "2020-01-21"
+               ) %>%
+              pull(deaths_perk) - 0) < 1e-3
+            )
+
+print("Excellent!")
+```
+
+## Guided EDA
+<!-- ------------------------- -->
+
+Before turning you loose, let's complete a couple guided EDA tasks.
+
+__q6__ Compute the mean and standard deviation for `cases_perk` and `deaths_perk`.
+
+```{r q6-task}
+df_normalized %>% 
+  summarise(mean_cases = mean(cases_perk), sd_cases = sd(cases_perk), mean_deaths = mean(deaths_perk), sd_deaths = sd(deaths_perk))
+
+```
+
+__q7__ Find the top 10 counties in terms of `cases_perk`, and the top 10 in terms of `deaths_perk`. Report the population of each county along with the per-100,000 counts. Compare the counts against the mean values you found in q6. Note any observations. Does New York City show up in the top? Why or why not?
+
+```{r q7-task}
+## TASK: Find the top 10 max cases_perk counties; report populations as well
+df_normalized %>% 
+  group_by(county,state) %>% 
+  summarise(max_cases_perk = max(cases_perk), population = max(population)) %>% 
+  ungroup() %>% 
+  arrange(desc(max_cases_perk)) %>% 
+  head(10)
+
+#df_data %>% 
+#  filter(county == "Fairfax") %>% 
+#  arrange(date)
+
+## TASK: Find the top 10 deaths_perk counties; report populations as well
+```
+
+**Observations**:
+
+New York is not on this list. It looks like most of these locations are smaller towns that have had outbreaks in specific institutions. For example:
+
+Trousdale - outbreak in a prison https://communityimpact.com/nashville/southwest-nashville/coronavirus/2020/05/01/large-spike-in-coronavirus-cases-traced-to-prison-in-trousdale-county/
+
+Lake Tennesee: outbreak at a prison https://www.wate.com/health/coronavirus/tennessees-lake-county-leads-us-in-per-capita-virus-cases/
+
+Lee Arkansas: outbreak at a prison
+https://wreg.com/news/small-arkansas-county-dealing-with-rise-in-covid-19-cases/
+
+Dakota Nebraska: outbreak at a meatpacking plant: 
+https://omaha.com/news/state_and_regional/786-workers-at-tysons-dakota-city-plant-have-coronavirus-company-says-worst-is-over/article_97279b04-9376-5990-861e-c423c47f13ab.html
+
+Lincoln Arkansas: Outbreak at a prison.
+
+
+## Self-directed EDA
+<!-- ------------------------- -->
+
+__q8__ Drive your own ship: You've just put together a very rich dataset; you now get to explore! Pick your own direction and generate at least one punchline figure to document an interesting finding. I give a couple tips & ideas below:
+
+
+
+
+```{r prison pop bad - only jails}
+#prison_pop = read_csv("data/prison_pop.csv") %>% 
+#  select(JURDID,STATE,COUNTY,FACLNAME,CONFPOP) %>%
+#  mutate(county_long = COUNTY) %>% 
+#  separate(
+#   col = county_long,
+#    sep = " ",
+#    into = c("county","countycity")
+#    ) %>% 
+#  mutate(county = tolower(county)) %>% 
+#  mutate(county = toupper(county[1])) %>% 
+# group_by(county) %>% 
+#  summarize(prisonPop = sum(CONFPOP))
+
+#prison_pop
+
+
+#prison_covid = merge(df_normalized, prison_pop, by = 'county', all.y = TRUE )
+#prison_covid
+
+```
+
+
+```{r prison pop census }
+prison_pop = read_csv("data/prison_pop2.csv",skip = 2)
+#prison_pop %>% 
+#  filter(NAME == "Sebastian County, Arkansas") #%>% 
+  #select(
+  #  NAME,
+  #  totalInstitutional = PCT020001
+  #)
+prison_pop2 = prison_pop %>% 
+  mutate(fips = substr(id,10,15)) %>% 
+  select(
+    fips,
+    Geographic_Area_Name,
+    Total,
+    total_institutional,
+    total_correctional,
+    nursing_home,
+    college_housing,
+    miliary_housing
+   ) %>% 
+  separate(
+    col = 2,
+    into = c("county", NA, "state"),
+    sep = " "
+  ) 
+
+#prison_pop2 
+
+institutional_covid = merge(df_normalized, prison_pop2, by = c("fips","county","state"))
+
+institutional_covid_normalized <- institutional_covid %>% 
+  mutate(institutionalized_perk = total_institutional / (population)) %>% 
+  mutate(totalI_perk = Total / (population)) %>% 
+  mutate(nursing_perk = nursing_home / (1))
+
+max_cases <- institutional_covid_normalized %>% 
+  group_by(county,state) %>% 
+  summarise(max_cases_perk = max(cases_perk), max_deaths_perk = max(deaths_perk), population = max(population), total = max(Total), institutionalized_perk = max(institutionalized_perk), totalI_perk = max(totalI_perk), nursing_perk = max(nursing_perk)) %>% 
+  ungroup() #%>% 
+  #arrange(desc(max_cases_perk)) %>% 
+  #head(10)
+
+max_cases %>% 
+  ggplot() + 
+  geom_point(aes(institutionalized_perk,max_cases_perk)) 
+  #coord_cartesian(
+  #  xlim = c(0,0.05),
+  #  ylim = c(0,2500)
+  #)
+
+```
+
+Need to visualize something along the lines of if a place has a high institutionalization rate, is there a higher likelihood of covid....
+
+```{r}
+max_cases %>% 
+  mutate(institution = (totalI_perk > 0.05)) %>% 
+  count(institution)
+```
+
+
+There are many many more places wihtout a high institutional population than there are place with one. 
+
+Plot I want - percentage of greater than 10 covid per 100,000 verses the per captita institutionalization rate 
+
+```{r}
+# set up cut-off values 
+#breaks <- c(0,0.02,0.04,0.06,0.08,.10,0.12,0.14,0.16,0.18,0.20,0.22,0.24,0.26,0.28,0.3,0.32,0.34,0.36,0.38,0.4)
+breaks <- c(0,0.04,0.08,0.12,0.16,.20,0.24,0.28,0.32,0.36,0.40,0.44)
+
+# specify interval/bin labels
+tags <- c("[0-2)","[2-4)", "[4-6)", "[6-8)", "[8-10)", "[10-12)","[12-14)", "[14-16)","[16-18)", "[18-20)")
+
+
+max_cases %>% 
+  mutate(institution_bin = round(institutionalized_perk*4, digits = 1)/4) %>% 
+  group_by(institution_bin) %>% 
+  summarize(average_cases = mean(max_cases_perk), ncounties = n()) %>% 
+  ggplot() + 
+  geom_smooth(aes(institution_bin,average_cases)) + 
+  geom_line(aes(institution_bin,average_cases)) + 
+  geom_point(aes(institution_bin,average_cases))
+
+
+#binstest
+```
+
+remove data with too few samples
+
+```{r}
+max_cases %>% 
+  mutate(institution_bin = round(institutionalized_perk*4, digits = 1)/4) %>% 
+  group_by(institution_bin) %>% 
+  summarize(average_cases = mean(max_cases_perk), ncounties = n()) %>% 
+  arrange(ncounties) %>% 
+  filter(ncounties > 5) %>% 
+  ggplot() + 
+  geom_smooth(aes(institution_bin,average_cases)) + 
+  geom_line(aes(institution_bin,average_cases)) + 
+  geom_point(aes(institution_bin,average_cases))
+  
+```
+
+
+```{r}
+max_cases %>% 
+  mutate(nursing_bin = round(nursing_perk*3, digits = -3)/3) %>% 
+  group_by(nursing_bin) %>% 
+  summarize(average_cases = mean(max_deaths_perk), ncounties = n()) %>% 
+  arrange(ncounties) %>% 
+  filter(ncounties > 5) %>% 
+  ggplot() + 
+  geom_smooth(aes(nursing_bin,average_cases)) + 
+  geom_line(aes(nursing_bin,average_cases)) + 
+  geom_point(aes(nursing_bin,average_cases))
+
+max_cases %>% 
+  arrange(desc(nursing_perk))
+```
+
+
+
+looking back at top 10: 
+
+```{r}
+institutional_covid_normalized %>% 
+  group_by(county,state, fips) %>% 
+  summarise(max_cases_perk = max(cases_perk), max_deaths_perk = max(deaths_perk), population = max(population), total = max(Total), institutionalized_perk = max(institutionalized_perk), totalI_perk = max(totalI_perk)) %>% 
+  ungroup() %>% 
+  arrange(desc(max_cases_perk)) %>% 
+  head(20) %>% 
+  ggplot() + 
+  geom_point(aes(totalI_perk,max_cases_perk))
+```
+
+
+Which are the counties with high institutionalized populations? Is there anything unusual about the one that has no outbreak? 
+```{r}
+max_cases %>% 
+  arrange(desc(institutionalized_perk))
+
+
+```
+
+
+
+It doesn't look like Crowley is much different - there is a prison there, but apparently they have avoided an outbreak. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Ideas
+<!-- ------------------------- -->
+
+- Look for outliers.
+- Try web searching for news stories in some of the outlier counties.
+- Investigate relationships between county population and counts.
+- Fix the *geographic exceptions* noted below to study New York City.
+- Your own idea!
+
+### Aside: Some visualization tricks
+<!-- ------------------------- -->
+
+These data get a little busy, so it's helpful to know a few `ggplot` tricks to help with the visualization. Here's an example focused on Massachusetts.
+
+```{r ma-example}
+## NOTE: No need to change this; just an example
+df_normalized %>%
+  filter(state == "Massachusetts") %>%
+
+  ggplot(
+    aes(date, cases_perk, color = fct_reorder2(county, date, cases_perk))
+  ) +
+  geom_line() +
+  scale_y_log10(labels = scales::label_number_si()) +
+  scale_color_discrete(name = "County") +
+  theme_minimal() +
+  labs(
+    x = "Date",
+    y = "Cases (per 100,000 persons)"
+  )
+```
+
+*Tricks*:
+
+- I use `fct_reorder2` to *re-order* the color labels such that the color in the legend on the right is ordered the same as the vertical order of rightmost points on the curves. This makes it easier to reference the legend.
+- I manually set the `name` of the color scale in order to avoid reporting the `fct_reorder2` call.
+- I use `scales::label_number_si` to make the vertical labels more readable.
+- I use `theme_minimal()` to clean up the theme a bit.
+- I use `labs()` to give manual labels.
+
+### Geographic exceptions
+<!-- ------------------------- -->
+
+The NYT repo documents some [geographic exceptions](https://github.com/nytimes/covid-19-data#geographic-exceptions); the data for New York, Kings, Queens, Bronx and Richmond counties are consolidated under "New York City" *without* a fips code. Thus the normalized counts in `df_normalized` are `NA`. To fix this, you would need to merge the population data from the New York City counties, and manually normalize the data.
+
+
+# Notes
+<!-- -------------------------------------------------- -->
+
+[1] The census used to have many, many questions, but the ACS was created in 2010 to remove some questions and shorten the census. You can learn more in [this wonderful visual history](https://pudding.cool/2020/03/census-history/) of the census.
+
+[2] FIPS stands for [Federal Information Processing Standards](https://en.wikipedia.org/wiki/Federal_Information_Processing_Standards); these are computer standards issued by NIST for things such as government data.
+
+[3] Demographers often report statistics not in percentages (per 100 people), but rather in per 100,000 persons. This is [not always the case](https://stats.stackexchange.com/questions/12810/why-do-demographers-give-rates-per-100-000-people) though!
