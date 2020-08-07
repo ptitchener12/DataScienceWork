@@ -496,10 +496,33 @@ max_cases %>%
 
 It doesn't look like Crowley is much different - there is a prison there, but apparently they have avoided an outbreak. 
 
+## County plots
+
+Let's look at the case load in counties with high institutionalization rates. We can start with Crowley and its adjacent counties 
+
+```{r glimpse}
+glimpse(prison_pop2)
+```
+
+```{r plot-merged}
+library(urbnmapr)
+library(sf)
+
+df_normalized_county <- df_normalized
+names(df_normalized_county)[names(df_normalized_county) == "fips"] <- "county_fips"
+
+df_normalized_county %>%
+  filter(state == "Colorado", date == "2020-08-05") %>%
+  left_join(counties, by = "county_fips") %>%
+  ggplot(aes(long, lat, group = group, fill = cases_perk)) +
+  geom_polygon(color = "#ffffff", size = .25) +
+  coord_map(projection = "albers", lat0 = 36, lat1 = 42)
 
 
-
-
+```
+```{r county}
+counties
+```
 
 
 
@@ -553,6 +576,7 @@ df_normalized %>%
     y = "Cases (per 100,000 persons)"
   )
 ```
+
 
 *Tricks*:
 
