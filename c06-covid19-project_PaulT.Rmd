@@ -438,12 +438,39 @@ Need to visualize something along the lines of if a place has a high institution
 
 ```{r}
 max_cases %>% 
-  mutate(institution = (totalI_perk > 0.05)) %>% 
+  mutate(institution = (total_institutional_perk > 5000)) %>% 
   count(institution)
 ```
 
 
-There are many many more places wihtout a high institutional population than there are place with one. 
+There are 2165 locations with an institutional population lower than 5% and 272 locations with a population abovve 272. 
+
+
+```{r covid cases in highly institutionalized locations}
+
+max_cases %>% 
+  mutate(
+    institution = (total_institutional_perk > 15000),
+    outbreak = max_cases_perk > 1000
+  ) %>% 
+  group_by(institution,outbreak) %>% 
+  #ggplot() +
+  #geom_boxplot(aes(x = institution, y = max_cases_perk)) +
+  #scale_y_log10()
+  summarize(
+    mean_cases = mean(max_cases_perk),
+    count = n(), 
+    standard_dev = sd(max_cases_perk)
+    
+  )
+
+  
+
+
+```
+
+
+
 
 Plot I want - percentage of greater than 10 covid per 100,000 verses the per captita institutionalization rate 
 
@@ -457,7 +484,7 @@ tags <- c("[0-2)","[2-4)", "[4-6)", "[6-8)", "[8-10)", "[10-12)","[12-14)", "[14
 
 
 max_cases %>% 
-  mutate(institution_bin = round(institutionalized_perk*4, digits = 1)/4) %>% 
+  mutate(institution_bin = round(total_institutional_perk /20000, digits = 1) *20000) %>% 
   group_by(institution_bin) %>% 
   summarize(average_cases = mean(max_cases_perk), ncounties = n()) %>% 
   ggplot() + 
@@ -473,7 +500,7 @@ remove data with too few samples
 
 ```{r}
 max_cases %>% 
-  mutate(institution_bin = round(institutionalized_perk*4, digits = 1)/4) %>% 
+  mutate(institution_bin = round(total_institutional_perk /20000, digits = 1) *20000) %>% 
   group_by(institution_bin) %>% 
   summarize(average_cases = mean(max_cases_perk), ncounties = n()) %>% 
   arrange(ncounties) %>% 
@@ -488,7 +515,7 @@ max_cases %>%
 
 ```{r}
 max_cases %>% 
-  mutate(nursing_bin = round(nursing_perk*3, digits = -3)/3) %>% 
+  mutate(nursing_bin = round(nursing_home_perk*5, digits = -3)/2) %>% 
   group_by(nursing_bin) %>% 
   summarize(average_cases = mean(max_deaths_perk), ncounties = n()) %>% 
   arrange(ncounties) %>% 
@@ -498,8 +525,6 @@ max_cases %>%
   geom_line(aes(nursing_bin,average_cases)) + 
   geom_point(aes(nursing_bin,average_cases))
 
-max_cases %>% 
-  arrange(desc(nursing_perk))
 ```
 
 
