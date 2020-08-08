@@ -271,7 +271,9 @@ institutional_normalized <- institutional_covid %>%
 max_cases <- institutional_normalized %>% 
   group_by(county,state) %>% 
   summarise(
+    max_cases = max(cases),
     max_cases_perk = max(cases_perk), 
+    max_deaths = max(deaths),
     max_deaths_perk = max(deaths_perk), 
     population = max(population), total = max(total), 
     total = max(total),
@@ -515,15 +517,42 @@ max_cases %>%
 
 ```{r}
 max_cases %>% 
-  mutate(nursing_bin = round(nursing_home_perk*5, digits = -3)/2) %>% 
+  mutate(nursing_bin = round(nursing_home_perk*5, digits = -3)/5) %>% 
   group_by(nursing_bin) %>% 
-  summarize(average_cases = mean(max_deaths_perk), ncounties = n()) %>% 
-  arrange(ncounties) %>% 
-  filter(ncounties > 2) %>% 
+  #summarize(average_cases = mean(max_deaths_perk), ncounties = n()) %>% 
+  #arrange(ncounties) %>% 
+  #filter(ncounties > 20) %>% 
   ggplot() + 
-  geom_smooth(aes(nursing_bin,average_cases)) + 
-  geom_line(aes(nursing_bin,average_cases)) + 
-  geom_point(aes(nursing_bin,average_cases))
+  #geom_smooth(aes(nursing_bin,average_cases)) + 
+  #geom_line(aes(nursing_bin,average_cases)) + 
+  #geom_point(aes(nursing_bin,average_cases)) +
+  geom_boxplot(aes(x = nursing_bin, y = max_deaths_perk, group = nursing_bin))
+
+```
+```{r}
+max_cases %>% 
+  mutate(nursing_bin = round(nursing_home_perk*5, digits = -3)/5) %>% 
+  arrange(desc(nursing_bin))
+```
+
+
+
+
+```{r}
+max_cases %>% 
+  arrange(desc(population)) %>% 
+  ggplot() +
+  geom_point(aes(x = nursing_home_perk, y = max_cases_perk,size = max_deaths_perk),alpha = 0.2, color = "blue") + 
+  #geom_smooth(aes(x = nursing_home, y = max_deaths)) +
+  scale_size(range = c(.1, 5), name="Population (M)") + 
+  coord_cartesian(
+    xlim = c(0,1500)
+  )
+```
+
+```{r}
+max_cases %>% 
+  filter(nursing_home >20000) 
 
 ```
 
