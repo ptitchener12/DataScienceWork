@@ -221,7 +221,7 @@ prison_pop2 = prison_pop %>%
     total_correctional,
     nursing_home,
     college_housing,
-    military_housing
+    miliary_housing
    ) %>% 
   separate(
     col = 2,
@@ -261,7 +261,7 @@ institutional_normalized <- institutional_covid %>%
   mutate(popk = population/100000) %>% 
   mutate(cases_perk = cases/popk, deaths_perk = deaths/popk) %>% 
   mutate(total_perk = total/popk, total_institutional_perk = total_institutional / popk, total_correctional_perk = total_correctional / popk) %>% 
-  mutate(nursing_home_perk = nursing_home / popk, college_perk = college_housing / popk, military_perk = military_housing / popk)
+  mutate(nursing_home_perk = nursing_home / popk, college_perk = college_housing / popk, military_perk = miliary_housing / popk)
   
 ```
 

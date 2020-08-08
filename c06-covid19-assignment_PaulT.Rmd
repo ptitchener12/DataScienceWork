@@ -508,11 +508,12 @@ glimpse(prison_pop2)
 library(urbnmapr)
 library(sf)
 
-df_normalized_county <- df_normalized
+df_normalized_county <- max_cases
 names(df_normalized_county)[names(df_normalized_county) == "fips"] <- "county_fips"
 
 df_normalized_county %>%
-  filter(state == "Colorado", date == "2020-08-05") %>%
+  # filter(state == "Tennessee", date == "2020-08-05") %>%
+  filter(state == "Tennessee") %>%
   left_join(counties, by = "county_fips") %>%
   ggplot(aes(long, lat, group = group, fill = cases_perk)) +
   geom_polygon(color = "#ffffff", size = .25) +
