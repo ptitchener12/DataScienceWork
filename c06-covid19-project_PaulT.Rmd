@@ -74,8 +74,8 @@ df_pop_select <- df_pop %>%
   select(id,Geographic_Area_Name, EstimatePopulation) %>% 
   separate(
     col = 2,
-    into = c("county", NA, "state"),
-    sep = " "
+    into = c("county", "state"),
+    sep = ","
   )
 
 #df_pop_select
@@ -106,6 +106,8 @@ curl::curl_download(
 
 ## Loads the downloaded csv
 df_covid <- read_csv(filename_nyt)
+
+df_covid
 ```
 
 You can now re-run the chunk above (or the entire notebook) to pull the most recent version of the data. Thus you can periodically re-run this notebook to check in on the pandemic as it evolves.
@@ -171,9 +173,9 @@ __q4__ Join `df_covid` with `df_q3` by the `fips` column. Use the proper type of
 
 ```{r q4-task}
 ## TASK: Join df_covid and df_q3 by fips.
-df_q4 <- merge(df_covid, df_q3, by = c("fips","county","state")) #all.y = TRUE)
+df_q4 <- merge(df_covid, df_q3, by = c("fips")) #all.y = TRUE)
 
-#df_q4[is.na(df_q4)] <- 0
+df_q4
 
 
 
@@ -198,20 +200,22 @@ df_data <-
   df_q4 %>%
   select(
     date,
-    county,
-    state,
+    county = 'county.y',
+    state = 'state.y',
     fips,
     cases,
     deaths,
     population = `EstimatePopulation`
   )
+
+df_data
 ```
 
 ##Import institutional population data
 ```{r}
 prison_pop = read_csv("data/prison_pop2.csv",skip = 2)
 
-prison_pop2 = prison_pop %>% 
+prison_pop2 <-  prison_pop %>% 
   mutate(fips = substr(id,10,15)) %>% 
   select(
     fips,
@@ -225,14 +229,18 @@ prison_pop2 = prison_pop %>%
    ) %>% 
   separate(
     col = 2,
-    into = c("county", NA, "state"),
-    sep = " "
+    into = c("County", "state"),
+    sep = ","
   ) 
 
-institutional_covid <- merge(df_data, prison_pop2, by = c("fips","county","state"))
+#institutional_covid <- merge(df_data, prison_pop2, by = c("fips","county","state"))
 
+prison_pop2
   
-  
+```
+
+```{r}
+prison_pop2
 ```
 
 
@@ -266,10 +274,13 @@ institutional_normalized <- institutional_covid %>%
 ```
 
 
+
+
+
 ```{r - max cases summary}
 
 max_cases <- institutional_normalized %>% 
-  group_by(county,state) %>% 
+  group_by(county, state, fips) %>% 
   summarise(
     max_cases = max(cases),
     max_cases_perk = max(cases_perk), 
@@ -594,6 +605,29 @@ It doesn't look like Crowley is much different - there is a prison there, but ap
 
 
 
+```{r plot-merged}
+
+library(urbnmapr)
+library(sf)
+
+df_normalized_county <- df_normalized
+names(df_normalized_county)[names(df_normalized_county) == "fips"] <- "county_fips"
+
+
+max_cases_county <- max_cases
+names(max_cases_county)[names(max_cases_county) == "fips"] <- "county_fips"
+
+max_cases_county %>%
+  #filter(state == "Colorado", date == "2020-08-05") %>%
+  #filter(date == "2020-08-05") %>%
+  left_join(counties, by = "county_fips") %>%
+  ggplot(aes(long, lat, group = group, fill = max_cases_perk)) +
+  geom_polygon(color = "#ffffff", size = .25) +
+  coord_map(projection = "albers", lat0 = 36, lat1 = 42)
+
+max_cases_county %>% 
+  filter(state == "West Virginia")
+```
 
 
 
