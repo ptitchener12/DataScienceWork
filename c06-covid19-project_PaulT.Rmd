@@ -286,7 +286,7 @@ max_cases <- institutional_normalized %>%
     nursing_home_perk = max(nursing_home_perk),
     college_housing = max(college_housing),
     college_perk = max(college_perk),
-    military_housing = max(military_housing),
+    military_housing = max(miliary_housing),
     military_perk = max(military_perk)
   ) %>%
   ungroup() %>% 
@@ -538,24 +538,148 @@ max_cases %>%
 
 
 
-```{r}
+```{r bubble-nursing}
+library(ggrepel)
+
+label_size = 2
+
+outlier_cases <- 
+  max_cases  %>%
+    filter(max_cases_perk >= 7500) %>%
+    unite("county_state", county:state, sep=", ", remove = FALSE)
+
+outlier_nursing <- 
+  max_cases  %>%
+    filter(nursing_home_perk >= 3000) %>%
+    unite("county_state", county:state, sep=", ", remove = FALSE)
+
 max_cases %>% 
+  unite("county_state", county:state, sep=", ", remove = FALSE) %>%
   arrange(desc(population)) %>% 
   ggplot() +
-  geom_point(aes(x = nursing_home_perk, y = max_cases_perk,size = max_deaths_perk),alpha = 0.2, color = "blue") + 
+  geom_point(aes(x = nursing_home_perk, y = max_cases_perk, size = max_deaths_perk),alpha = 0.2, color = "blue") + 
+  geom_label_repel(size = label_size, data = outlier_cases, aes(x = nursing_home_perk, y = max_cases_perk, label = county_state, fill = "max_cases_perk > 7500")) +
+  geom_label_repel(size = label_size, data = outlier_nursing, aes(x = nursing_home_perk, y = max_cases_perk, label = county_state, fill = "nursing_home_perk > 3000")) +
   #geom_smooth(aes(x = nursing_home, y = max_deaths)) +
-  scale_size(range = c(.1, 5), name="Population (M)") + 
-  coord_cartesian(
-    xlim = c(0,1500)
-  )
+  scale_size(range = c(.1, 8), name="Deaths Per 100k") 
+  # coord_cartesian(xlim = c(0,1500))
 ```
+
+```{r bubble-institutionalized}
+library(ggrepel)
+
+label_size = 2
+
+outlier_cases <- 
+  max_cases  %>%
+    filter(max_cases_perk >= 7500) %>%
+    unite("county_state", county:state, sep=", ", remove = FALSE)
+
+outlier_institutional <-
+  max_cases  %>%
+    filter(total_institutional_perk > 30000) %>%
+    unite("county_state", county:state, sep=", ", remove = FALSE)
+
+max_cases %>% 
+  unite("county_state", county:state, sep=", ", remove = FALSE) %>%
+  arrange(desc(population)) %>% 
+  ggplot() +
+  geom_point(aes(x = total_institutional_perk, y = max_cases_perk, size = max_deaths_perk),alpha = 0.2, color = "blue") + 
+  geom_label_repel(size = label_size, data = outlier_cases, aes(x = total_institutional_perk, y = max_cases_perk, label = county_state, fill = "max_cases_perk > 7500")) +
+  geom_label_repel(size = label_size, data = outlier_institutional, aes(x = total_institutional_perk, y = max_cases_perk, label = county_state, fill = "total_institutional_perk > 30000")) +
+  #geom_smooth(aes(x = nursing_home, y = max_deaths)) +
+  scale_size(range = c(.1, 8), name="Deaths Per 100k") 
+  # coord_cartesian(xlim = c(0,1500))
+```
+Observations:
+
+- Greensville, Virginia - among the cyan-labeled institutionalized counties, this has the largest Deaths per 100k.
+    - Does this indicate something peculiar about VA?
+    
+    
+```{r glimpse-states}
+glimpse(urbnmapr::states)
+```
+    
+```{r urbnmapr_county}
+glimpse(urbnmapr::counties)
+```
+    
+```{r plot-virginia}
+library(urbnmapr)
+library(sf)
+
+target_date = "2020-08-05"
+
+isolated_county_fips <-
+  df_normalized_county %>%
+  filter(state == "Virginia", county == "Greensville") %>%
+  summarize(fips = unique(county_fips))
+
+isolated_county <-
+  urbnmapr::counties %>%
+  filter(county_fips == isolated_county_fips$fips)
+
+isolated_state <-
+  urbnmapr::states %>%
+  filter(state_name == "Virginia")
+
+df_normalized_county <- df_normalized
+names(df_normalized_county)[names(df_normalized_county) == "fips"] <- "county_fips"
+
+df_normalized_county %>%
+  filter(state == "Virginia", date == target_date) %>%
+  left_join(counties, by = "county_fips") %>%
+  ggplot() +
+  geom_polygon(aes(long, lat, group = group), data = isolated_state, fill = "grey", color = "white") +
+  geom_polygon(aes(long, lat, group = group, fill = cases_perk), color = "#ffffff", size = .25) +
+  geom_polygon(aes(long, lat, group = group), data = isolated_county, fill = NA, color = "red") +
+  coord_map(projection = "albers", lat0 = 36, lat1 = 42)
+
+
+```
+
+
+```{r plot-virginia-deaths}
+library(urbnmapr)
+library(sf)
+
+target_date = "2020-08-05"
+
+isolated_county_fips <-
+  df_normalized_county %>%
+  filter(state == "Virginia", county == "Greensville") %>%
+  summarize(fips = unique(county_fips))
+
+isolated_county <-
+  urbnmapr::counties %>%
+  filter(county_fips == isolated_county_fips$fips)
+
+isolated_state <-
+  urbnmapr::states %>%
+  filter(state_name == "Virginia")
+
+df_normalized_county <- df_normalized
+names(df_normalized_county)[names(df_normalized_county) == "fips"] <- "county_fips"
+
+df_normalized_county %>%
+  filter(state == "Virginia", date == target_date) %>%
+  left_join(counties, by = "county_fips") %>%
+  ggplot() +
+  geom_polygon(aes(long, lat, group = group), data = isolated_state, fill = "grey", color = "white") +
+  geom_polygon(aes(long, lat, group = group, fill = deaths_perk), color = "#ffffff", size = .25) +
+  geom_polygon(aes(long, lat, group = group), data = isolated_county, fill = NA, color = "red") +
+  coord_map(projection = "albers", lat0 = 36, lat1 = 42)
+
+
+```
+
 
 ```{r}
 max_cases %>% 
   filter(nursing_home >20000) 
 
 ```
-
 
 
 looking back at top 10: 
@@ -590,18 +714,85 @@ It doesn't look like Crowley is much different - there is a prison there, but ap
 
 
 
+## Summary of COVID Cases in Prisons per State
+
+```{r prison-cases}
+
+# source: https://www.prisonpolicy.org/blog/2020/06/24/covidrates/
+library(readr)
+df_prison_covid <- read_csv("data/prison_policy_covid.csv")
+
+glimpse(df_prison_covid)
+```
+
+```{r policy-plot}
+df_prison_covid %>%
+  # mutate_each_(funs(as.numeric), Deaths_per_10k)
+  filter(Deaths_per_10k > 0) %>%
+  arrange(desc(Deaths_per_10k)) %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = reorder(State, -Deaths_per_10k), Deaths_per_10k), stat = "identity") +
+  theme(axis.text.x = element_text(angle = 45,  hjust=1, size = 8)) +
+  labs(x = "State")
+```
 
 
+```{r policy-plot-cases}
+df_prison_covid %>%
+  # mutate_each_(funs(as.numeric), Deaths_per_10k)
+  filter(cases_per_10k > 0) %>%
+  arrange(desc(cases_per_10k)) %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = reorder(State, -cases_per_10k), cases_per_10k), stat = "identity") +
+  theme(axis.text.x = element_text(angle = 45,  hjust=1, size = 7)) +
+  labs(x = "State")
+```
 
 
+```{r policy-case-fatality-rate}
+df_prison_covid %>%
+  filter(Deaths_per_confirmed_case > 0) %>%
+  mutate(case_fatality_rate = as.numeric(sub("%", "", Deaths_per_confirmed_case))) %>%
+  arrange(desc(case_fatality_rate)) %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = reorder(State, -case_fatality_rate), case_fatality_rate), stat = "identity") +
+  theme(axis.text.x = element_text(angle = 45,  hjust=1, size = 7)) +
+  labs(x = "State", y = "Case Fatality Rate [%]")
+```
+
+```{r}
+glimpse(urbnmapr::states)
+```
+
+```{r map-prison-cfr}
+df_prison_covid %>%
+  filter(Deaths_per_confirmed_case > 0) %>%
+  mutate(
+    case_fatality_rate = as.numeric(sub("%", "", Deaths_per_confirmed_case)),
+    state_name = State
+         ) %>%
+  left_join(urbnmapr::states, by = "state_name") %>%
+  ggplot() +
+  geom_polygon(aes(long, lat, group = group), data = urbnmapr::states, fill = "grey", color = "white") +
+  geom_polygon(aes(long, lat, group = group, fill = case_fatality_rate), color = "#ffffff", size = .25)
+  # geom_polygon(aes(long, lat, group = group), data = isolated_county, fill = NA, color = "red") +
+  coord_map(projection = "albers", lat0 = 36, lat1 = 42)
+```
 
 
-
-
-
-
-
-
+```{r map-prison-cfr}
+df_prison_covid %>%
+  filter(Deaths_per_confirmed_case > 0) %>%
+  mutate(
+    state_name = State
+         ) %>%
+  left_join(urbnmapr::states, by = "state_name") %>%
+  ggplot() +
+  geom_polygon(aes(long, lat, group = group), data = urbnmapr::states, fill = "grey", color = "white") +
+  geom_polygon(aes(long, lat, group = group, fill = N_tests_given), color = "#ffffff", size = .25)
+  # geom_polygon(aes(long, lat, group = group), data = isolated_county, fill = NA, color = "red") +
+  coord_map(projection = "albers", lat0 = 36, lat1 = 42)
+```
 
 
 
